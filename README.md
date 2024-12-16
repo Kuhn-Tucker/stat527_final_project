@@ -6,3 +6,5 @@ We use Lasso, Adaptive Lasso and SCAD model to complete the variable selection t
 The dataset we are using is the Boston Housing dataset.
 <br>
 We are using the R programming language, and our code is stored in a file named "Models.R".
+<br>
+Group Members: Jiachen Cong; Shiding Huang; Yanting Zhou
