@@ -46,24 +46,19 @@ cat("Frequencies of All Selected Variables:\n")
 print(variable_frequency)
 
 
-# Load necessary libraries
+
+
+# Adaptive Lasso model
 library(caret)  # For stratified sampling
 library(glmnet)  # For Lasso and Adaptive Lasso
-
-# Load the dataset
 data <- read.csv("housing_data.csv")
-
-# Define true variables
 true_variables <- c("zn", "chas", "nox", "rm", "dis", "rad", "tax", "ptratio", "lstat")
-
-# Initialize storage for results
 set.seed(123)
 n_simulations <- 100  # Number of simulations
 fdr_values <- numeric(n_simulations)  # Store FDR for each simulation
 type2_error_values <- numeric(n_simulations)  # Store Type II Error for each simulation
 all_variables <- colnames(data)[!(colnames(data) %in% c("ID", "medv"))]
 selection_counts <- data.frame(Variable = all_variables, Selected_Count = rep(0, length(all_variables)))  # Initialize counts
-
 # Simulation loop
 for (i in 1:n_simulations) {
   # Step 1: Stratified sampling of 180 data points
@@ -71,20 +66,16 @@ for (i in 1:n_simulations) {
   sample_index <- createDataPartition(data$medv_bins, p = 180 / nrow(data), list = FALSE)
   sampled_data <- data[sample_index, ]
   sampled_data$medv_bins <- NULL  # Remove bin column
-  
   # Step 2: Prepare predictors and response
   X <- as.matrix(sampled_data[, !(names(sampled_data) %in% c("ID", "medv"))])
   y <- sampled_data$medv
-  
   # Step 3: Initial Lasso with 5-fold cross-validation to compute weights
   initial_model <- cv.glmnet(X, y, alpha = 1, standardize = TRUE, nfolds = 5)
   initial_coefs <- abs(coef(initial_model, s = "lambda.min")[-1])  # Exclude intercept
   weights <- 1 / (initial_coefs + 1e-6)  # Add small constant to avoid division by zero
-  
   # Step 4: Fit Adaptive Lasso with 5-fold cross-validation
   adaptive_model <- cv.glmnet(X, y, alpha = 1, penalty.factor = weights, standardize = TRUE, nfolds = 5)
   adaptive_coefs <- coef(adaptive_model, s = "lambda.min")
-  
   # Step 5: Filter variables with non-zero coefficients
   coef_df <- data.frame(
     Variable = rownames(adaptive_coefs),
@@ -93,28 +84,22 @@ for (i in 1:n_simulations) {
   coef_df <- coef_df[coef_df$Variable != "(Intercept)", ]  # Exclude intercept
   non_zero_coefs <- coef_df[coef_df$Coefficient != 0, ]
   selected_variables <- non_zero_coefs$Variable
-  
   # Step 6: Calculate FDR and Type II Error
   false_positives <- setdiff(selected_variables, true_variables)
   false_negatives <- setdiff(true_variables, selected_variables)
   total_selected <- length(selected_variables)
   total_true <- length(true_variables)
-  
   fdr <- ifelse(total_selected > 0, length(false_positives) / total_selected, 0)
   type2_error <- length(false_negatives) / total_true
-  
   # Record FDR and Type II Error for this simulation
   fdr_values[i] <- fdr
   type2_error_values[i] <- type2_error
-  
   # Update selection counts for variables
   selection_counts$Selected_Count <- selection_counts$Selected_Count + as.numeric(selection_counts$Variable %in% selected_variables)
 }
-
 # Step 7: Compute averages
 avg_fdr <- mean(fdr_values)
 avg_type2_error <- mean(type2_error_values)
-
 # Print results
 print(paste("Average FDR:", avg_fdr))
 print(paste("Average Type II Error Rate:", avg_type2_error))
@@ -122,18 +107,14 @@ print("FDR Values for Each Simulation:")
 print(fdr_values)
 print("Type II Error Values for Each Simulation:")
 print(type2_error_values)
-
 # Prepare the selection counts table
 print("Selection Counts Table:")
 print(selection_counts)
-
 # Rank variables based on Selected_Count in descending order
 selection_counts_ranked <- selection_counts[order(-selection_counts$Selected_Count), ]
-
 # Print the ranked table
 print("Ranked Selection Counts Table:")
 print(selection_counts_ranked)
-
 ### Print the ranked table with only the first 9 variables
 print("Top 9 Variables with the Highest Selection Counts:")
 print(head(selection_counts_ranked, 9))
